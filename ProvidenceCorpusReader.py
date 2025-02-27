@@ -129,8 +129,9 @@ class ProvidenceCorpusReader(CHILDESCorpusReader):
         CHILDESCorpusReader.__init__(self, root, fileids, lazy)
         
         # use namedtuple to more easily access information needed
-        self.word_info = namedtuple('word_info', ['fileid', 'age','orthography', 'stem', 'transcription', 
-                                       'pos', 'media_times'])
+        #Add sentence that a word is part of to information saved about it (by number identifier)
+        self.word_info = namedtuple('word_info', ['fileid', 'age','orthography', 'stem', 'transcription',
+                                       'pos', 'utt_num', 'media_times'])
         self.child_transcription = namedtuple('transcription', ['model', 'actual'])
      
      
@@ -221,6 +222,7 @@ class ProvidenceCorpusReader(CHILDESCorpusReader):
         xmldoc = ElementTree.parse(fileid).getroot()
  
         # iterates through each sentence <u></u>
+        i = 0
         for xmlsent in xmldoc.findall('.//{%s}u' % NS):
             
             sents = []
@@ -229,41 +231,44 @@ class ProvidenceCorpusReader(CHILDESCorpusReader):
             # of utterances
             if utt_times:
                 media_times = self._get_media_times(xmlsent)
-                
+            sent_pos_tags = self._get_sent_pos(xmlsent)
+            print(sent_pos_tags)
             # select speakers
             #needed to change the tag for speaker ID (it was "who" for the Providence Corpus)
             if speaker == 'ALL' or xmlsent.get('speaker') in speaker:
                 # iterates through all word elements <w></w> in an utterance
                 
-                if speaker == ['CHI']:
-                    xmlwords = xmlsent.findall('.//{%s}pg' % NS)
-                else:
-                    xmlwords = xmlsent.findall('.//{%s}w' % NS)
+                # if speaker == ['CHI']:
+                #     xmlwords = xmlsent.findall('.//{%s}pg' % NS)
+                # else:
+                #     xmlwords = xmlsent.findall('.//{%s}w' % NS)
+                xmlwords = xmlsent.findall('.//{%s}w' % NS)
 
                 for xmlword in xmlwords:
                     
                     suffixStem = None
-                    
+
+                    #replace is False by default so won't enter this
                     if replace:
                         xmlword = self._get_replaced_words(xmlsent)
                         
                     word = self._get_word_text(xmlword, strip_space).lower()
                     
-                    # skip entries not found in the CMU dictionary
+                    # skip entries not found in the pronunciation dictionary
                     if word not in fr_pron_dict:
                         continue
                         
                     # save the text of the word because the word can be
                     # changed to stem+suffix later
                     orthography = word
-                    # stem
+                    # stem True by default
                     if relation or stem:
                         stem = self._get_word_stem(xmlword, word).lower()
                         word = word
                             
                     # pos
                     if relation or pos:
-                        pos_tag = self._get_word_pos(xmlword)
+                        pos_tag = None
                         word = (word, pos_tag)
                         
                     # relation
@@ -286,17 +291,17 @@ class ProvidenceCorpusReader(CHILDESCorpusReader):
                         # transcription isn't found.
                         try:
                             word = self.word_info(filename, age_month, orthography, stem, transcription, 
-                                                  pos_tag, media_times)
+                                                  pos_tag, i, media_times)
                         except IndexError:
                             continue
-                      
                     sents.append(word)
+
                     
                 if sent or relation:
                     results.append(sents)
                 else:
                     results.extend(sents)
-                    
+                i += 1
         return results
     
     
@@ -304,9 +309,16 @@ class ProvidenceCorpusReader(CHILDESCorpusReader):
         """
         Finds the location of the sentence within the audio file.
         """
-        sent_times = xmlsent.find('.//{%s}media' % (NS))
+        #Time encoded on a different tier for the Paris corpus
+        sent_times = xmlsent.find('.//{%s}segment' % (NS))
         try:
-            media_times = (float(sent_times.attrib['start']), float(sent_times.attrib['end']))
+            start = float(sent_times.attrib['startTime'])
+            if "end" in sent_times.attrib:
+                end =  float(sent_times.attrib['end'])
+            else:
+                duration = float(sent_times.attrib['duration'])
+                end = start+duration
+                media_times = (start,end)
         except AttributeError:
             media_times = (0.0, 0.0)
         return media_times
@@ -329,7 +341,7 @@ class ProvidenceCorpusReader(CHILDESCorpusReader):
         Get the text of the word
         """
         # If the speaker is a 'CHI', get the child element <w>
-        if xmlword.tag == '{%s}pg' % NS:
+        if xmlword.tag == '{%s}pg' % NS: #only applicable for Providence
             xmlword = xmlword.find('.//{%s}w' % NS)
         if xmlword.text:
             word = xmlword.text
@@ -373,34 +385,44 @@ class ProvidenceCorpusReader(CHILDESCorpusReader):
         return word
     
     
-    def _get_word_pos(self, xmlword):
-        suffixTag = None
+    # def _get_word_pos(self, xmlword):
+    #     suffixTag = None
+    #
+    #     try:
+    #         xmlpos = xmlword.findall(".//{%s}c" % NS)
+    #         xmlpos2 = xmlword.findall(".//{%s}s" % NS)
+    #         if xmlpos2 != []:
+    #             tag = xmlpos[0].text + ":" + xmlpos2[0].text
+    #         else:
+    #             tag = xmlpos[0].text
+    #     except (AttributeError, IndexError):
+    #         tag = ""
+    #     try:
+    #         xmlsuffixpos = xmlword.findall('.//{%s}mor/{%s}mor-post/{%s}mw/{%s}pos/{%s}c'
+    #                                        % (NS, NS, NS, NS, NS))
+    #         xmlsuffixpos2 = xmlword.findall('.//{%s}mor/{%s}mor-post/{%s}mw/{%s}pos/{%s}s'
+    #                                         % (NS, NS, NS, NS, NS))
+    #         if xmlsuffixpos2:
+    #             suffixTag = xmlsuffixpos[0].text + ":" + xmlsuffixpos2[0].text
+    #         else:
+    #             suffixTag = xmlsuffixpos[0].text
+    #     except:
+    #         pass
+    #
+    #     if suffixTag:
+    #         tag += "~" + suffixTag
+    #
+    #     return tag
 
-        try:
-            xmlpos = xmlword.findall(".//{%s}c" % NS)
-            xmlpos2 = xmlword.findall(".//{%s}s" % NS)
-            if xmlpos2 != []:
-                tag = xmlpos[0].text + ":" + xmlpos2[0].text
-            else:
-                tag = xmlpos[0].text
-        except (AttributeError, IndexError):
-            tag = ""
-        try:
-            xmlsuffixpos = xmlword.findall('.//{%s}mor/{%s}mor-post/{%s}mw/{%s}pos/{%s}c'
-                                           % (NS, NS, NS, NS, NS))
-            xmlsuffixpos2 = xmlword.findall('.//{%s}mor/{%s}mor-post/{%s}mw/{%s}pos/{%s}s'
-                                            % (NS, NS, NS, NS, NS))
-            if xmlsuffixpos2:
-                suffixTag = xmlsuffixpos[0].text + ":" + xmlsuffixpos2[0].text
-            else:
-                suffixTag = xmlsuffixpos[0].text
-        except:
-            pass
-        
-        if suffixTag:
-            tag += "~" + suffixTag
-            
-        return tag
+    def _get_sent_pos(self, xmlsent):
+        xmlmorsent = xmlsent.find('.//{%s}groupTier' % (NS))
+        pos_tags = []
+        if xmlmorsent:
+            for mor in xmlmorsent.findall(".//{%s}w" % NS):
+                pos_tags.append(mor.text.split("|")[0])
+        return pos_tags
+
+
     
     def _get_word_relation(self, xmlword, word, suffixStem):
         for xmlstem_rel in xmlword.findall('.//{%s}mor/{%s}gra'
