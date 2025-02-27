@@ -21,6 +21,7 @@ from nltk.corpus.reader.childes import CHILDESCorpusReader
 from nltk.util import LazyMap, LazyConcatenation
 from six import string_types
 import pickle
+import nltk_replacements
 
 import xml.etree.ElementTree as ElementTree
 
@@ -206,6 +207,9 @@ class ProvidenceCorpusReader(CHILDESCorpusReader):
         print('Processing file ', fileid)
         filename = str(fileid).rsplit('/', maxsplit=1)[-1]
         age_month = self.age(fileid, month=True)[0]
+        #NLTK function didn't work for Paris corpus
+        if not age_month:
+            age_month = nltk_replacements.get_age(NS,fileid)
         
         # processing each xml doc
         results = [] 
@@ -449,6 +453,7 @@ class ProvidenceCorpusReader(CHILDESCorpusReader):
             except KeyError:
                 transcription = ''
             
+            #Already in IPA for this corpus
             # if ipa:
             #     transcription = self._arpa_to_ipa(transcription)
         
