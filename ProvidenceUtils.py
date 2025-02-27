@@ -4,8 +4,7 @@ def getFileIds(prov_path, by_child=False):
     """Given the root directory of the XML version of the Providence Corpus,
     returns all the fileids of the corpus to be used by ProvidenceCorpusReader.
     """
-    subdirs = [subdir for subdir in os.listdir(prov_path)
-               if not subdir.startswith('.')]
+    subdirs = [subdir for subdir in os.listdir(prov_path) if not "." in subdir]
     
     if by_child:
         fileids = {}

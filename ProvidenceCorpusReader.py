@@ -20,16 +20,18 @@ import nltk
 from nltk.corpus.reader.childes import CHILDESCorpusReader
 from nltk.util import LazyMap, LazyConcatenation
 from six import string_types
+import pickle
 
 import xml.etree.ElementTree as ElementTree
 
 __docformat__ = 'epytext en'
 
-NS = 'http://www.talkbank.org/ns/talkbank'
+#NS = 'http://www.talkbank.org/ns/talkbank'
+NS = 'http://phon.ling.mun.ca/ns/phonbank'
 
 cDigraphs = {
     'ɪ': ['a', 'ɑ', 'o', 'e', 'ɔ'],
-    'ʊ': ['a', 'ɑ', 'o', 'ɔ'], 
+    'ʊ': ['a', 'ɑ', 'o', 'ɔ'],
     'ʃ': ['t'],
     'ʒ': ['d'],
     'r': ['ʌ','ə', 'ɜ˞'],
@@ -106,13 +108,17 @@ cConsonants = {'P', 'B', 'T', 'D', 'K', 'G', 'CH', 'JH', 'F', 'V', 'TH', 'DH',
                'S', 'Z', 'SH', 'ZH', 'HH', 'M', 'N', 'NG', 'L', 'R',' Q'}
 
 
-# Download the CMU Dictionary
-try:
-    cmu = nltk.corpus.cmudict.dict()
-except LookupError:
-    print('CMU Dictionary not found. Downloading the CMU Dictionary.')
-    nltk.download('cmudict')
-    cmu = nltk.corpus.cmudict.dict()
+# # Download the CMU Dictionary
+# try:
+#     cmu = nltk.corpus.cmudict.dict()
+# except LookupError:
+#     print('CMU Dictionary not found. Downloading the CMU Dictionary.')
+#     nltk.download('cmudict')
+#     cmu = nltk.corpus.cmudict.dict()
+
+# Import the French pronunciation dictionary
+with open("/Users/annika/Desktop/Penn/Year3/Liaison/LexiconSim/fr_pron_dict.pkl","rb") as dict_file:
+    fr_pron_dict = pickle.load(dict_file)
 
 
 class ProvidenceCorpusReader(CHILDESCorpusReader):
@@ -239,7 +245,7 @@ class ProvidenceCorpusReader(CHILDESCorpusReader):
                     word = self._get_word_text(xmlword, strip_space).lower()
                     
                     # skip entries not found in the CMU dictionary
-                    if word not in cmu:
+                    if word not in fr_pron_dict:
                         continue
                         
                     # save the text of the word because the word can be
@@ -438,7 +444,7 @@ class ProvidenceCorpusReader(CHILDESCorpusReader):
             transcription = self.child_transcription(model_phones, actual_phones)
         else:
             try:
-                transcription = cmu[orthography.strip()][0]
+                transcription = fr_pron_dict[orthography.strip()][0]
             except KeyError:
                 transcription = ''
             
