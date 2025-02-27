@@ -12,9 +12,9 @@ csv_dir = '/Users/annika/Desktop/Penn/Year3/Liaison/ParisData'
 for child in fileids.keys():
     paris = ProvidenceCorpusReader(path, fileids[child])
 
-    child_file = open(os.path.join(csv_dir, '%s_child.csv' % child), 'x', encoding='utf-8')
+    child_file = open(os.path.join(csv_dir, '%s_child.csv' % child), 'w', encoding='utf-8')
     child_file.write('child,fileid,age,orthography,stem,model,actual,pos,start_time,end_time\n')
-    parent_file = open(os.path.join(csv_dir, '%s_parentt.csv' % child), 'x',encoding='utf-8')
+    parent_file = open(os.path.join(csv_dir, '%s_parentt.csv' % child), 'w',encoding='utf-8')
     parent_file.write('child,fileid,age,orthography,stem,phonemes,pos,start_time,end_time\n')
 
 

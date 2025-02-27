@@ -227,7 +227,8 @@ class ProvidenceCorpusReader(CHILDESCorpusReader):
                 media_times = self._get_media_times(xmlsent)
                 
             # select speakers
-            if speaker == 'ALL' or xmlsent.get('who') in speaker:
+            #needed to change the tag for speaker ID (it was "who" for the Providence Corpus)
+            if speaker == 'ALL' or xmlsent.get('speaker') in speaker:
                 # iterates through all word elements <w></w> in an utterance
                 
                 if speaker == ['CHI']:
@@ -448,8 +449,8 @@ class ProvidenceCorpusReader(CHILDESCorpusReader):
             except KeyError:
                 transcription = ''
             
-            if ipa:
-                transcription = self._arpa_to_ipa(transcription)
+            # if ipa:
+            #     transcription = self._arpa_to_ipa(transcription)
         
         return transcription
 
