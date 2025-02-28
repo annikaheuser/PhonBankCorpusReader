@@ -222,7 +222,7 @@ class ProvidenceCorpusReader(CHILDESCorpusReader):
         xmldoc = ElementTree.parse(fileid).getroot()
  
         # iterates through each sentence <u></u>
-        i = 0
+        sent_num = 0
         for xmlsent in xmldoc.findall('.//{%s}u' % NS):
             
             sents = []
@@ -231,8 +231,7 @@ class ProvidenceCorpusReader(CHILDESCorpusReader):
             # of utterances
             if utt_times:
                 media_times = self._get_media_times(xmlsent)
-            sent_pos_tags = self._get_sent_pos(xmlsent)
-            print(sent_pos_tags)
+            sent_pos,sent_rel = self._get_sent_morph(xmlsent)
             # select speakers
             #needed to change the tag for speaker ID (it was "who" for the Providence Corpus)
             if speaker == 'ALL' or xmlsent.get('speaker') in speaker:
@@ -242,10 +241,9 @@ class ProvidenceCorpusReader(CHILDESCorpusReader):
                 #     xmlwords = xmlsent.findall('.//{%s}pg' % NS)
                 # else:
                 #     xmlwords = xmlsent.findall('.//{%s}w' % NS)
-                xmlwords = xmlsent.findall('.//{%s}w' % NS)
-
+                xmlwords = xmlsent.findall(f'.//{{{NS}}}orthography//{{{NS}}}w')
+                i = 0
                 for xmlword in xmlwords:
-                    
                     suffixStem = None
 
                     #replace is False by default so won't enter this
@@ -255,25 +253,26 @@ class ProvidenceCorpusReader(CHILDESCorpusReader):
                     word = self._get_word_text(xmlword, strip_space).lower()
                     
                     # skip entries not found in the pronunciation dictionary
-                    if word not in fr_pron_dict:
-                        continue
+                    # if word not in fr_pron_dict:
+                    #     continue
                         
                     # save the text of the word because the word can be
                     # changed to stem+suffix later
                     orthography = word
                     # stem True by default
-                    if relation or stem:
-                        stem = self._get_word_stem(xmlword, word).lower()
-                        word = word
-                            
-                    # pos
-                    if relation or pos:
-                        pos_tag = None
-                        word = (word, pos_tag)
-                        
-                    # relation
-                    if relation:
-                        word, suffixStem = self._get_word_relation(xmlword, word, suffixStem)
+                    # if relation or stem:
+                    #     stem = self._get_word_stem(xmlword, word).lower()
+                    #     word = word
+                    #
+                    # # pos
+                    # if relation or pos:
+                    #     pos_tag = None
+                    #     word = (word, pos_tag)
+                    #
+                    # # relation
+                    # if relation:
+                    #     word, suffixStem = self._get_word_relation(xmlword, word, suffixStem)
+
                     
                     # get transcription since parental speech
                     # aren't transcribed
@@ -290,8 +289,9 @@ class ProvidenceCorpusReader(CHILDESCorpusReader):
                         # future development should let the user decide what to do when the
                         # transcription isn't found.
                         try:
-                            word = self.word_info(filename, age_month, orthography, stem, transcription, 
-                                                  pos_tag, i, media_times)
+                            word = self.word_info(filename, age_month, xmlword.text, stem, transcription,
+                                                  sent_pos[i], sent_num, media_times)
+                            i+=1
                         except IndexError:
                             continue
                     sents.append(word)
@@ -301,7 +301,7 @@ class ProvidenceCorpusReader(CHILDESCorpusReader):
                     results.append(sents)
                 else:
                     results.extend(sents)
-                i += 1
+                sent_num += 1
         return results
     
     
@@ -414,13 +414,25 @@ class ProvidenceCorpusReader(CHILDESCorpusReader):
     #
     #     return tag
 
-    def _get_sent_pos(self, xmlsent):
+    def _get_sent_morph(self, xmlsent):
         xmlmorsent = xmlsent.find('.//{%s}groupTier' % (NS))
         pos_tags = []
+        rel_tags = []
         if xmlmorsent:
             for mor in xmlmorsent.findall(".//{%s}w" % NS):
-                pos_tags.append(mor.text.split("|")[0])
-        return pos_tags
+                pos_rel = mor.text.split("|")[0]
+                if ":" in pos_rel:
+                    pos,rel = pos_rel.split(":")
+                else:
+                    pos = pos_rel
+                    rel = ''
+                if pos[0] == "0": #0pro:subj|il - want to tag this just as a pronoun
+                    pos = pos[1:]
+                if pos == ".":
+                    pos = ""
+                pos_tags.append(pos)
+                rel_tags.append(rel)
+        return pos_tags,rel_tags
 
 
     
