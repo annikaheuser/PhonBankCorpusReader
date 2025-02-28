@@ -26,13 +26,12 @@ for child in fileids.keys():
 
     for word in mot_words:
         parent_file.write('%s,%s,%s,%s,%s,%s,%s,%s,%s\n' % (child,word.fileid, word.age, word.orthography,
-                                                      word.stem, '.'.join(word.transcription), word.pos,
+                                                      word.stem, word.transcription, word.pos,
                                                             word.utt_num, ','.join(str(t) for t in word.media_times)))
     for word in child_words:
-        child_file.write('%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n' % (child,word.fileid, word.age,word.orthography, word.stem,
-                                                        '.'.join(word.transcription.model), 
-                                                        '.'.join(word.transcription.actual), word.pos,
-                                                              word.utt_num, ','.join(str(t) for t in word.media_times)))
+        child_file.write('%s,%s,%s,%s,%s,%s,%s,%s,%s\n' % (child,word.fileid, word.age,word.orthography, word.stem,
+                                                        word.transcription, word.pos,
+                                                            word.utt_num, ','.join(str(t) for t in word.media_times)))
 
 
 print('Done.')

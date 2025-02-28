@@ -232,7 +232,10 @@ class ProvidenceCorpusReader(CHILDESCorpusReader):
             if utt_times:
                 media_times = self._get_media_times(xmlsent)
             sent_pos,sent_rel = self._get_sent_morph(xmlsent)
-            # select speakers
+            transcription = None
+            if speaker == ["CHI"]:
+                transcription = self._get_child_phones(xmlsent)
+            #transcription = self._get_transcription(xmlsent,speaker)
             #needed to change the tag for speaker ID (it was "who" for the Providence Corpus)
             if speaker == 'ALL' or xmlsent.get('speaker') in speaker:
                 # iterates through all word elements <w></w> in an utterance
@@ -274,12 +277,17 @@ class ProvidenceCorpusReader(CHILDESCorpusReader):
                     #     word, suffixStem = self._get_word_relation(xmlword, word, suffixStem)
 
                     
+                    #transcription = self._get_transcription(xmlsent, orthography, speaker, ipa)
                     # get transcription since parental speech
                     # aren't transcribed
-                    if transcription:
-                        transcription = self._get_transcription(xmlword, orthography, speaker, ipa)
-                        word = (orthography, transcription)
-                    
+                    # if transcription:
+                    #     transcription = self._get_transcription(xmlsent, orthography, speaker, ipa)
+                    #     word = (orthography, transcription)
+                    if not transcription:
+                        if orthography in fr_pron_dict:
+                            transcribed_word = fr_pron_dict[orthography]
+                    else:
+                        transcribed_word = transcription[i]
                     if utt_times:
                         word = (orthography, media_times)
                     
@@ -289,7 +297,7 @@ class ProvidenceCorpusReader(CHILDESCorpusReader):
                         # future development should let the user decide what to do when the
                         # transcription isn't found.
                         try:
-                            word = self.word_info(filename, age_month, xmlword.text, stem, transcription,
+                            word = self.word_info(filename, age_month, xmlword.text, stem, transcribed_word,
                                                   sent_pos[i], sent_num, media_times)
                             i+=1
                         except IndexError:
@@ -473,25 +481,25 @@ class ProvidenceCorpusReader(CHILDESCorpusReader):
         return word, suffixStem
     
     
-    def _get_transcription(self, xmlword, orthography, speaker, ipa):
-        """
-        Get the phonetic/phonemic transcription of a word. 
-        """
-        if speaker == ['CHI']:
-            model_phones = self._get_child_phones(xmlword, False)
-            actual_phones = self._get_child_phones(xmlword, True)
-            transcription = self.child_transcription(model_phones, actual_phones)
-        else:
-            try:
-                transcription = fr_pron_dict[orthography.strip()][0]
-            except KeyError:
-                transcription = ''
-            
-            #Already in IPA for this corpus
-            # if ipa:
-            #     transcription = self._arpa_to_ipa(transcription)
-        
-        return transcription
+    # def _get_transcription(self, xmlsent, orthography, speaker, ipa):
+    #     """
+    #     Get the phonetic/phonemic transcription of a word.
+    #     """
+    #     transcription = ''
+    #     if speaker == ['CHI']:
+    #
+    #         #transcription = self.child_transcription(model_phones, actual_phones)
+    #     else:
+    #         try:
+    #             transcription = fr_pron_dict[orthography.strip()]
+    #         except KeyError:
+    #             transcription = ''
+    #
+    #         #Already in IPA for this corpus
+    #         # if ipa:
+    #         #     transcription = self._arpa_to_ipa(transcription)
+    #
+    #     return transcription
 
     def _arpa_to_ipa(self, transcription):
         """Turn Arpabet transcription into IPA transcription.
@@ -509,38 +517,47 @@ class ProvidenceCorpusReader(CHILDESCorpusReader):
                 ipa_transcription.append(this_phone)
                 
         return ipa_transcription
-    
-    def _get_child_phones(self, xmlword, actual = True):
-        """Given a word uttered by a child, get the transcription of the model production
-        and the child's actual production.
-        """
+
+    def _get_child_phones(self,xmlsent):
         phones = []
-        last_phone = ''
-        
-        if actual:
-            xmlphones = xmlword.findall('.//{%s}actual/{%s}pw/{%s}ph' % (NS, NS, NS))
-        else: 
-            xmlphones = xmlword.findall('.//{%s}model/{%s}pw/{%s}ph' % (NS, NS, NS))
-                    
-        for i, xmlphone in enumerate(xmlphones):
-            this_phone = xmlphone.text
-            if this_phone == 'ː':
-                continue
-            
-            if this_phone == '(':
-                break
-            
-            if (this_phone in cDigraphs.keys() 
-                and last_phone in cDigraphs[this_phone]):
-                phones[-1] = phones[-1] + this_phone
-            elif (i == len(xmlphones) - 1 or xmlphones[i+1].text in cVowels) and this_phone == 'l' and last_phone == 'ə':
-                phones[-1] = phones[-1] + this_phone
-            else:
-                phones.append(this_phone)
-            
-            if phones[-1] in cReplacement.keys():
-                phones[-1] = cReplacement[phones[-1]]
-                
-            last_phone = this_phone
-            
+        ipawords = xmlsent.find(f'.//{{{NS}}}ipaTier[@form="actual"]')
+        #ipawords = xmlsent.findall(f'.//{{{NS}}}ipaTier')
+        for ipaword in ipawords.findall(f'.//{{{NS}}}w'):
+            phones.append(ipaword.text)
         return phones
+
+    
+    # def _get_child_phones(self, xmlword, actual = True):
+    #     """Given a word uttered by a child, get the transcription of the model production
+    #     and the child's actual production.
+    #     """
+    #     phones = []
+    #     last_phone = ''
+    #
+    #     if actual:
+    #         xmlphones = xmlword.findall('.//{%s}actual/{%s}pw/{%s}ph' % (NS, NS, NS))
+    #     else:
+    #         xmlphones = xmlword.findall('.//{%s}model/{%s}pw/{%s}ph' % (NS, NS, NS))
+    #
+    #     for i, xmlphone in enumerate(xmlphones):
+    #         this_phone = xmlphone.text
+    #         if this_phone == 'ː':
+    #             continue
+    #
+    #         if this_phone == '(':
+    #             break
+    #
+    #         if (this_phone in cDigraphs.keys()
+    #             and last_phone in cDigraphs[this_phone]):
+    #             phones[-1] = phones[-1] + this_phone
+    #         elif (i == len(xmlphones) - 1 or xmlphones[i+1].text in cVowels) and this_phone == 'l' and last_phone == 'ə':
+    #             phones[-1] = phones[-1] + this_phone
+    #         else:
+    #             phones.append(this_phone)
+    #
+    #         if phones[-1] in cReplacement.keys():
+    #             phones[-1] = cReplacement[phones[-1]]
+    #
+    #         last_phone = this_phone
+    #
+    #     return phones
